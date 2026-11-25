@@ -5,7 +5,8 @@ A small Blazor WebAssembly app, plus an automated browser test, that reproduces
 and the follow-up gap fixed by [PR #584](https://github.com/mrpmorris/Fluxor/pull/584).
 
 The same app can be built against Fluxor **6.9.0** (has the bug), **6.11.0** (partially fixed) or the
-Fluxor source in this repository (**Local**, i.e. the PR).
+Fluxor source in this repository (**Local**, i.e. the PR). The expected results for Local assume the
+checked-out Fluxor source contains the PR #584 fix, which is true on this branch (it is based on the PR head).
 
 ## What #562 was
 
@@ -64,7 +65,9 @@ serves each `wwwroot` from a minimal Kestrel static file host on a free port, an
 Chromium in a fresh browser context, capturing console messages and page errors.
 
 The tests are opt-in (they are skipped unless `FLUXOR_REPRO_TESTS=1`) and tagged
-`[Trait("Category", "BrowserRepro")]`. They are not part of `Source/Fluxor.sln`; `Repro/Issue562.sln` has them.
+`[Trait("Category", "BrowserRepro")]`. They are not part of `Source/Fluxor.sln`, which stays the real
+solution. `Repro/Issue562.sln` has the app and the tests, and also includes the referenced `Source/Lib`
+projects (Fluxor, Fluxor.Blazor.Web and its analyzers) so the Local variant can be debugged into Fluxor in one click.
 
 ```
 cd Repro/Issue562/Issue562.Tests
@@ -78,7 +81,13 @@ almost all of it the three `dotnet publish` runs. The detailed logger prints, pe
 the page, whether Blazor's error bar is visible, and every console message.
 
 Each test row asserts what *that* version does, so the rows document the bug and the fixes rather than
-all expecting the same result.
+all expecting the same result. Each row also checks that the page runs the intended Fluxor: the build
+property shown on the page, and the informational version of the Fluxor assembly that actually loaded
+(`6.9.0+...`, `6.11.0+...`, or the local build's `1.0.0+<commit>`).
+
+Checks that something does *not* happen ("`IsLoading` stays `true`", "`StatusUpdates` stays 0") wait a
+fixed 3 seconds before looking. That is ample: the fake API answers after 50 ms and every working
+version updates the page within a few hundred milliseconds of the click.
 
 ## Results
 
@@ -87,7 +96,7 @@ Playwright 1.58.0), Windows 11. All 6 rows passed on repeated runs.
 
 | | Scenario A: effect catches, dispatches `StateFailureAction` | Scenario B: action queued behind the throwing one |
 |---|---|---|
-| **6.9.0** | Frozen. `IsLoading` stays `true`, no error message, **nothing in the console**, no error bar. *Increment* does nothing (`Counter` stays 0). | Blazor logs the unhandled `ArgumentNullException` and shows its error bar. `StatusUpdates` stays 0, `IsLoading` stays `true`, *Increment* does nothing: frozen. |
+| **6.9.0** | Frozen. `IsLoading` stays `true`, no error message, **no console error or warning at all** (in fact no console output), no error bar. *Increment* does nothing (`Counter` stays 0). | Blazor logs the unhandled `ArgumentNullException` and shows its error bar. `StatusUpdates` stays 0, `IsLoading` stays `true`, *Increment* does nothing: frozen. |
 | **6.11.0** | Works. `ErrorMessage` = `System.ArgumentNullException: Value cannot be null. (Parameter 'key')`, `IsLoading` = `false`, the exception is logged. *Increment* works. | Unhandled exception logged and error bar shown. `StatusUpdates` **stays 0** and `IsLoading` stays `true`: the status action is stranded. It is only processed when *Increment* is clicked (then `StatusUpdates` = 1, `Counter` = 1). |
 | **Local (PR #584)** | Same as 6.11.0. | Unhandled exception logged and error bar shown. `StatusUpdates` = 1 and `IsLoading` = `false` **right after the click**; *Increment* works. |
 

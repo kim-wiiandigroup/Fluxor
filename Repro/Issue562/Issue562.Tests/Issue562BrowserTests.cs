@@ -49,6 +49,11 @@ public sealed class Issue562BrowserTests(ReproAppFixture fixture, ITestOutputHel
 			await Task.Delay(SettleTime, TestContext.Current.CancellationToken);
 			Assert.Equal("0", await TextAsync(page, "counter"));
 			Assert.Equal("true", await TextAsync(page, "is-loading"));
+
+			// Completely silent: not a single console error or warning, and no uncaught page error
+			Assert.DoesNotContain(session.ConsoleMessages, m =>
+				m.StartsWith("console.error:") || m.StartsWith("console.warning:") || m.StartsWith("pageerror:"));
+			Assert.False(await ErrorUiVisibleAsync(page));
 		}
 		else
 		{
@@ -145,6 +150,20 @@ public sealed class Issue562BrowserTests(ReproAppFixture fixture, ITestOutputHel
 		// The app is loaded and Fluxor's store has processed StoreInitializedAction
 		await Expect(page.GetByTestId("store-initialized")).ToHaveTextAsync("true", new() { Timeout = 60_000 });
 		await Expect(page.GetByTestId("fluxor-variant")).ToHaveTextAsync(fluxorVersion);
+
+		// Check the Fluxor assembly that actually loaded, not only the build property
+		string loadedVersion = await TextAsync(page, "fluxor-version");
+		if (fluxorVersion == "Local")
+		{
+			// The in-repo projects carry no package version, so their informational version is not 6.x
+			Assert.False(
+				loadedVersion.StartsWith("6.9.0") || loadedVersion.StartsWith("6.11.0"),
+				$"Local build loaded a released Fluxor: {loadedVersion}");
+		}
+		else
+		{
+			Assert.StartsWith(fluxorVersion + "+", loadedVersion);
+		}
 		return session;
 	}
 
