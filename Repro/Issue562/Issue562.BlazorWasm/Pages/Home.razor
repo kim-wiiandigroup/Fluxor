@@ -1,0 +1,72 @@
+@page "/"
+@using System.Reflection
+@inherits FluxorComponent
+@inject IState<MainState> State
+@inject IDispatcher Dispatcher
+
+<PageTitle>Fluxor issue #562 repro</PageTitle>
+
+<h1>Fluxor issue #562 reproduction</h1>
+
+<p>
+    Built against Fluxor: <strong data-testid="fluxor-variant">@FluxorVariant</strong>
+    (Fluxor.dll <span data-testid="fluxor-version">@FluxorAssemblyVersion</span>)
+    &middot; Store initialized: <span data-testid="store-initialized">@Lower(State.Value.IsStoreInitialized)</span>
+</p>
+
+<h2>Scenario A &ndash; issue #562</h2>
+<p>
+    An effect awaits a (fake) API call and dispatches <code>SetAllCustomPropertiesAction</code>. Its reducer
+    throws <code>ArgumentNullException</code> because one property has no name. The effect catches the
+    exception and dispatches <code>StateFailureAction</code>, which should stop the spinner and show the error.
+</p>
+<button data-testid="load-bad" @onclick="LoadBad">Load custom properties (bad data)</button>
+<button data-testid="load-good" @onclick="LoadGood">Load custom properties (good data)</button>
+
+<h2>Scenario B &ndash; PR #584</h2>
+<p>
+    An effect dispatches <code>SetAllCustomPropertiesAction</code> (bad data) and then
+    <code>CustomPropertiesStatusUpdatedAction</code> synchronously, so both are queued in the dispatcher
+    behind the action that triggered the effect.
+</p>
+<button data-testid="load-and-mark" @onclick="LoadAndMark">Load and mark finished (bad data)</button>
+
+<h2>Is the dispatcher still alive?</h2>
+<button data-testid="increment" @onclick="Increment">Increment</button>
+
+<h2>State</h2>
+<table>
+    <tr><td>Counter</td><td data-testid="counter">@State.Value.Counter</td></tr>
+    <tr><td>IsLoading</td><td data-testid="is-loading">@Lower(State.Value.IsLoading)</td></tr>
+    <tr><td>ErrorMessage</td><td data-testid="error-message">@State.Value.ErrorMessage</td></tr>
+    <tr><td>StatusUpdates</td><td data-testid="status-updates">@State.Value.StatusUpdates</td></tr>
+    <tr><td>Custom properties</td><td data-testid="property-count">@State.Value.CustomPropertyTypes.Count</td></tr>
+</table>
+@if (State.Value.IsLoading)
+{
+    <p><em>Loading...</em></p>
+}
+
+@code {
+    private static string FluxorVariant =>
+        typeof(Home).Assembly.GetCustomAttributes<AssemblyMetadataAttribute>()
+            .FirstOrDefault(x => x.Key == "FluxorVersion")?.Value ?? "?";
+
+    private static string FluxorAssemblyVersion
+    {
+        get
+        {
+            Assembly fluxor = typeof(IDispatcher).Assembly;
+            return fluxor.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion
+                ?? fluxor.GetName().Version?.ToString()
+                ?? "?";
+        }
+    }
+
+    private static string Lower(bool value) => value ? "true" : "false";
+
+    private void LoadBad() => Dispatcher.Dispatch(new FetchCustomPropertiesAction(BadData: true));
+    private void LoadGood() => Dispatcher.Dispatch(new FetchCustomPropertiesAction(BadData: false));
+    private void LoadAndMark() => Dispatcher.Dispatch(new FetchCustomPropertiesAndMarkFinishedAction());
+    private void Increment() => Dispatcher.Dispatch(new IncrementAction());
+}

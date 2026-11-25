@@ -1,0 +1,38 @@
+<Project Sdk="Microsoft.NET.Sdk.BlazorWebAssembly">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <OverrideHtmlAssetPlaceholders>true</OverrideHtmlAssetPlaceholders>
+    <!-- obj/<version> and bin/<version> of the other Fluxor versions must not be compiled in -->
+    <!-- Keep real exception messages in Release builds ("Value cannot be null." instead of resource keys) -->
+    <UseSystemResourceKeys>false</UseSystemResourceKeys>
+    <DefaultItemExcludes>$(DefaultItemExcludes);obj/**;bin/**</DefaultItemExcludes>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly" Version="10.0.15" />
+    <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.DevServer" Version="10.0.15" PrivateAssets="all" />
+  </ItemGroup>
+
+  <!-- FluxorVersion is defined in Directory.Build.props (default: Local) -->
+  <ItemGroup Condition="'$(FluxorVersion)' == 'Local'">
+    <!-- The Fluxor source in this repository (includes the fix from PR #584) -->
+    <ProjectReference Include="..\..\..\Source\Lib\Fluxor\Fluxor.csproj" />
+    <ProjectReference Include="..\..\..\Source\Lib\Fluxor.Blazor.Web\Fluxor.Blazor.Web.csproj" />
+  </ItemGroup>
+  <ItemGroup Condition="'$(FluxorVersion)' != 'Local'">
+    <!-- A released NuGet package: 6.9.0 (has the bug) or 6.11.0 (partially fixed) -->
+    <PackageReference Include="Fluxor.Blazor.Web" Version="$(FluxorVersion)" />
+  </ItemGroup>
+
+  <!-- Lets the page show which Fluxor variant it was built against -->
+  <ItemGroup>
+    <AssemblyAttribute Include="System.Reflection.AssemblyMetadataAttribute">
+      <_Parameter1>FluxorVersion</_Parameter1>
+      <_Parameter2>$(FluxorVersion)</_Parameter2>
+    </AssemblyAttribute>
+  </ItemGroup>
+
+</Project>

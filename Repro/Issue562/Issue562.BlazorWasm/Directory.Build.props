@@ -1,0 +1,12 @@
+<Project>
+  <!--
+    The Fluxor version is chosen with -p:FluxorVersion=6.9.0 | 6.11.0 | Local (default).
+    Each version gets its own obj/bin folders so switching between NuGet packages and the
+    in-repo project references never mixes restore or build outputs.
+  -->
+  <PropertyGroup>
+    <FluxorVersion Condition="'$(FluxorVersion)' == ''">Local</FluxorVersion>
+    <BaseIntermediateOutputPath>obj\$(FluxorVersion)\</BaseIntermediateOutputPath>
+    <BaseOutputPath>bin\$(FluxorVersion)\</BaseOutputPath>
+  </PropertyGroup>
+</Project>
